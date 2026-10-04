@@ -1,0 +1,12 @@
+# Environnement virtuel
+venv/
+
+# Fichiers temporaires de Python et de Jupyter
+__pycache__/
+.ipynb_checkpoints/
+
+# Fichiers inutilisés
+*.pkl
+
+# Données brutes volumineuses (téléchargeables sur le site de l'UCI)
+Online_Retail.xlsx
