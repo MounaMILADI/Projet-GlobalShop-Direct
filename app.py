@@ -1,219 +1,127 @@
 # Import des librairies
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
 
 # Configuration de la page : titre de l'onglet et affichage sur toute la largeur
-st.set_page_config(page_title="GlobalShop Direct - Segmentation RFM", layout="wide")
+st.set_page_config(page_title="GlobalShop Direct - Simulateur client", layout="wide")
 
-# Chargement du dataset RFM avec les segments
+
+# ----------------------------------------------------------------
+# Préparation : données et centres des segments
+# ----------------------------------------------------------------
+
+# Chargement du dataset RFM avec les segments (produit par le notebook de l'activité 3)
 rfm = pd.read_csv("rfm_segments.csv", index_col="CustomerID")
 
-# Ordre d'affichage des segments, du plus rentable au moins actif
-ordre_segments = ["Champions", "Occasionnels", "Nouveaux clients", "Inactifs"]
+# Les 3 métriques RFM
+colonnes = ["Recence", "Frequence", "Montant"]
 
-# Couleur fixe pour chaque segment, identique sur tous les graphiques
-couleurs = {
-    "Champions": "#2ca02c",
-    "Occasionnels": "#1f77b4",
-    "Nouveaux clients": "#ff7f0e",
-    "Inactifs": "#d62728",
+# Même prétraitement que dans le notebook : transformation logarithmique
+X_log = np.log1p(rfm[colonnes])
+
+# Même prétraitement que dans le notebook : standardisation
+# (même calcul que StandardScaler : on retire la moyenne, puis on divise par l'écart-type)
+moyennes = X_log.mean()
+ecarts_types = X_log.std(ddof=0)
+X_scaled = (X_log - moyennes) / ecarts_types
+
+# Centre de chaque segment : moyenne des clients du segment dans l'espace standardisé
+# (ce sont les centres des clusters calculés par K-means)
+centres = X_scaled.groupby(rfm["Segment"]).mean()
+
+# Valeurs médianes de chaque segment, pour présenter le profil type
+medianes = rfm.groupby("Segment")[colonnes].median()
+
+# Nom affiché au singulier (on qualifie un seul client), description et action recommandée pour chaque segment
+infos = {
+    "Champions": {
+        "nom": "Champion",
+        "couleur": "#2ca02c",
+        "profil": "Client qui achète récemment, souvent et beaucoup : un des clients les plus précieux.",
+        "action": "Fidéliser : programme VIP, avantages exclusifs, offres premium.",
+    },
+    "Occasionnels": {
+        "nom": "Occasionnel",
+        "couleur": "#1f77b4",
+        "profil": "Bon client, mais dont les achats sont espacés : fort potentiel de progression.",
+        "action": "Faire commander plus souvent : offres personnalisées, programme de points.",
+    },
+    "Nouveaux clients": {
+        "nom": "Nouveau client",
+        "couleur": "#ff7f0e",
+        "profil": "Client qui vient d'acheter, mais encore peu : l'enjeu est le deuxième achat.",
+        "action": "Déclencher un deuxième achat : réduction sur la prochaine commande, e-mail de bienvenue.",
+    },
+    "Inactifs": {
+        "nom": "Inactif",
+        "couleur": "#d62728",
+        "profil": "Client qui n'achète plus depuis longtemps et a peu dépensé : probablement perdu.",
+        "action": "Relancer à faible coût : e-mail « vous nous manquez », offre promotionnelle.",
+    },
 }
 
-# Part de chaque segment dans la clientèle (en %), utilisée dans les commentaires
-parts = (rfm["Segment"].value_counts(normalize=True) * 100).round(1)
-
-# Menu de navigation dans le panneau de gauche
-st.sidebar.title("Navigation")
-page = st.sidebar.radio(
-    "Choisissez une page :",
-    [
-        "Accueil",
-        "Indicateurs clés",
-        "Répartition des segments",
-        "Visualisation PCA",
-        "Comparaison des segments",
-        "Personas marketing",
-    ],
-)
-
-# Rappel visible sur toutes les pages, dans le panneau de gauche
-st.sidebar.markdown("---")
-st.sidebar.write(f"**Clients analysés** : {len(rfm)}")
-st.sidebar.write("**Période** : du 01/12/2010 au 09/12/2011")
-st.sidebar.write("**Modèle** : K-means, 4 segments")
-
 
 # ----------------------------------------------------------------
-# Page 1 : Accueil
+# Interface du simulateur
 # ----------------------------------------------------------------
-if page == "Accueil":
-    # Titre du dashboard
-    st.title("GlobalShop Direct : Segmentation clients RFM")
 
-    # Présentation du dashboard
-    st.write("Ce dashboard présente la segmentation des clients de GlobalShop Direct, construite à partir de la méthode RFM et du clustering K-means.")
-    st.write("**Récence** : nombre de jours entre le dernier achat du client et la fin de la période.")
-    st.write("**Fréquence** : nombre de commandes passées sur la période.")
-    st.write("**Montant** : total dépensé sur la période, en livres sterling (£).")
-    st.write("**Période d'analyse** : du 1er décembre 2010 au 9 décembre 2011 (un peu plus d'un an).")
-    st.info("Utilisez le menu de gauche pour naviguer entre les pages.")
+# Titre et présentation
+st.title("GlobalShop Direct : Simulateur de qualification client")
+st.write("Saisissez le profil RFM d'un client pour connaître son segment et l'action marketing recommandée.")
 
+# Trois colonnes : saisie à gauche, espace vide au milieu, résultat à droite
+col_saisie, col_espace, col_resultat = st.columns([1, 0.3, 2])
 
-# ----------------------------------------------------------------
-# Page 2 : Indicateurs clés (cartes KPI)
-# ----------------------------------------------------------------
-elif page == "Indicateurs clés":
-    # Filtre par segment dans le panneau de gauche
-    choix = st.sidebar.selectbox("Filtrer par segment :", ["Tous les clients"] + ordre_segments)
+with col_saisie:
+    st.subheader("Profil du client")
 
-    # Sélection des clients correspondant au choix
-    if choix == "Tous les clients":
-        donnees = rfm
+    # Saisie de la récence (en jours)
+    recence = st.number_input("Récence : jours depuis le dernier achat", min_value=1, max_value=1000, value=30, step=1)
+
+    # Saisie de la fréquence (en nombre de commandes)
+    frequence = st.number_input("Fréquence : nombre de commandes", min_value=1, max_value=500, value=3, step=1)
+
+    # Saisie du montant (en livres sterling)
+    montant = st.number_input("Montant : total dépensé (£)", min_value=1.0, max_value=500000.0, value=1000.0, step=50.0)
+
+    # Bouton pour lancer la qualification
+    lancer = st.button("Qualifier le client", type="primary")
+
+with col_resultat:
+    if lancer:
+        # Mise en forme du client saisi, avec les mêmes colonnes que les données d'origine
+        client = pd.DataFrame([[recence, frequence, montant]], columns=colonnes)
+
+        # Même prétraitement que pour les autres clients : logarithme puis standardisation
+        client_scaled = ((np.log1p(client) - moyennes) / ecarts_types).iloc[0]
+
+        # Distance entre le client et le centre de chaque segment
+        distances = np.sqrt(((centres - client_scaled) ** 2).sum(axis=1))
+
+        # Comme K-means : le client appartient au segment dont le centre est le plus proche
+        segment = distances.idxmin()
+        info = infos[segment]
+
+        # Affichage du segment, dans sa couleur
+        st.subheader("Résultat")
+        st.markdown(
+            f"<h2 style='color:{info['couleur']}; margin-top:0'>{info['nom']}</h2>",
+            unsafe_allow_html=True,
+        )
+        st.write(info["profil"])
+
+        # Action marketing recommandée
+        st.success(f"**Action recommandée** : {info['action']}")
+
+        # Comparaison avec le client type du segment (valeurs médianes)
+        st.write(f"**Profil type : {info['nom']}** (valeurs médianes du segment) :")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Récence médiane", f"{medianes.loc[segment, 'Recence']:.0f} jours")
+        c2.metric("Fréquence médiane", f"{medianes.loc[segment, 'Frequence']:.0f} commandes")
+        c3.metric("Montant médian", f"{medianes.loc[segment, 'Montant']:.0f} £")
     else:
-        donnees = rfm[rfm["Segment"] == choix]
+        st.info("Renseignez le profil du client à gauche, puis cliquez sur « Qualifier le client ».")
 
-    # Titre de la page
-    st.header(f"Indicateurs clés : {choix}")
-
-    # 4 cartes côte à côte
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Nombre de clients", len(donnees))
-    col2.metric("Récence médiane", f"{donnees['Recence'].median():.0f} jours")
-    col3.metric("Fréquence médiane", f"{donnees['Frequence'].median():.0f} commandes")
-    col4.metric("Montant médian", f"{donnees['Montant'].median():.0f} £")
-
-    # Commentaire sous les cartes
-    st.caption("Valeurs médianes calculées sur la période du 1er décembre 2010 au 9 décembre 2011.")
-    st.caption("La médiane est utilisée car quelques clients aux valeurs très élevées faussent la moyenne.")
-
-
-# ----------------------------------------------------------------
-# Page 3 : Répartition des segments
-# ----------------------------------------------------------------
-elif page == "Répartition des segments":
-    # Titre de la page
-    st.header("Répartition des clients par segment")
-
-    # Nombre de clients dans chaque segment, dans l'ordre choisi
-    repartition = rfm["Segment"].value_counts().reindex(ordre_segments)
-
-    # Création du graphique en barres, large et peu haut pour tenir sur une vue
-    fig, ax = plt.subplots(figsize=(12, 4.5))
-    ax.bar(repartition.index, repartition.values, color=[couleurs[s] for s in repartition.index])
-    ax.set_ylabel("Nombre de clients")
-
-    # Affichage du nombre de clients au-dessus de chaque barre
-    for i, valeur in enumerate(repartition.values):
-        ax.text(i, valeur, str(valeur), ha="center", va="bottom")
-
-    # Affichage du graphique
-    st.pyplot(fig)
-
-    # Commentaire sous le graphique
-    st.caption(f"Les Inactifs forment le segment le plus important ({parts['Inactifs']} % des clients).")
-    st.caption(f"Les Champions ne représentent que {parts['Champions']} % des clients.")
-
-
-# ----------------------------------------------------------------
-# Page 4 : Visualisation PCA
-# ----------------------------------------------------------------
-elif page == "Visualisation PCA":
-    # Filtre par segment dans le panneau de gauche
-    choix = st.sidebar.selectbox("Filtrer par segment :", ["Tous les clients"] + ordre_segments)
-
-    # Sélection des clients correspondant au choix
-    if choix == "Tous les clients":
-        donnees = rfm
-    else:
-        donnees = rfm[rfm["Segment"] == choix]
-
-    # Titre de la page
-    st.header(f"Segments en 2D (PCA) : {choix}")
-
-    # Nuage de points des clients sélectionnés, coloré par segment
-    fig, ax = plt.subplots(figsize=(12, 5))
-    sns.scatterplot(x=donnees["PCA1"], y=donnees["PCA2"], hue=donnees["Segment"], palette=couleurs, s=15, ax=ax)
-    ax.set_xlabel("PCA Component 1")
-    ax.set_ylabel("PCA Component 2")
-
-    # Affichage du graphique
-    st.pyplot(fig)
-
-    # Commentaire sous le graphique
-    st.caption("Chaque point représente un client. Les segments occupent des zones distinctes, des Inactifs (à gauche) aux Champions (à droite).")
-    st.caption("Les deux composantes principales expliquent environ 94 % de la variance des données RFM.")
-
-
-# ----------------------------------------------------------------
-# Page 5 : Comparaison des segments (boxplots)
-# ----------------------------------------------------------------
-elif page == "Comparaison des segments":
-    # Titre de la page
-    st.header("Comparaison des segments")
-
-    # Métriques à comparer et titres des graphiques
-    colonnes = ["Recence", "Frequence", "Montant"]
-    titres = ["Récence (jours)", "Fréquence (commandes)", "Montant (£)"]
-
-    # Création de la figure avec 3 graphiques côte à côte, large et peu haute
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5), layout="constrained")
-
-    # Un boxplot par métrique, avec un boxplot par segment
-    for col, titre, ax in zip(colonnes, titres, axs.flat):
-        sns.boxplot(x=rfm["Segment"], y=rfm[col], order=ordre_segments, palette=couleurs, ax=ax)
-        ax.set_title(titre)
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-        ax.tick_params(axis="x", rotation=20)
-
-    # Échelle logarithmique pour la fréquence et le montant, pour rendre les boxplots lisibles
-    axs[1].set_yscale("log")
-    axs[2].set_yscale("log")
-
-    # Affichage du graphique
-    st.pyplot(fig)
-
-    # Commentaire sous le graphique
-    st.caption("Les Champions se distinguent par une récence faible, une fréquence et un montant élevés. Les Inactifs ont la récence la plus élevée.")
-    
-# ----------------------------------------------------------------
-# Page 6 : Personas marketing
-# ----------------------------------------------------------------
-elif page == "Personas marketing":
-    # Titre de la page
-    st.header("Personas marketing")
-
-    # Médianes RFM par segment, arrondies à l'entier, dans l'ordre choisi
-    personas = rfm.groupby("Segment")[["Recence", "Frequence", "Montant"]].median().round(0).astype(int).reindex(ordre_segments)
-
-    # Ajout du nombre de clients par segment
-    personas["Effectif"] = rfm["Segment"].value_counts()
-
-    # Ajout de la part de chaque segment dans la clientèle (en %)
-    personas["Part (%)"] = parts
-
-    # Action marketing recommandée pour chaque segment
-    actions = {
-        "Champions": "Fidélisation et offres premium (programme VIP, avantages exclusifs)",
-        "Occasionnels": "Offres personnalisées et programme de points pour augmenter la fréquence",
-        "Nouveaux clients": "Accueil et incitation à un deuxième achat (réduction sur la prochaine commande)",
-        "Inactifs": "Campagne de relance peu coûteuse (offre promotionnelle)",
-    }
-
-    # Ajout de l'action recommandée dans le tableau
-    personas["Action recommandée"] = personas.index.map(actions)
-
-    # Noms de colonnes plus lisibles pour l'équipe marketing
-    personas = personas.rename(columns={
-        "Recence": "Récence médiane (jours)",
-        "Frequence": "Fréquence médiane (commandes)",
-        "Montant": "Montant médian (£)",
-    })
-
-    # Affichage du tableau sur toute la largeur, avec retour à la ligne dans les cellules
-    st.table(personas)
-
-    # Commentaire sous le tableau
-    
+# Rappel de la période et du modèle
+st.caption("Segmentation K-means en 4 segments, construite sur 4 338 clients, du 1er décembre 2010 au 9 décembre 2011.")
