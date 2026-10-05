@@ -6,7 +6,10 @@ Projet réalisé en binôme dans le cadre de la formation Data Analyst Simplon.
 
 Ce projet propose une segmentation comportementale des clients de la plateforme e-commerce **GlobalShop Direct**, à partir de leur historique d'achats. La segmentation repose sur la méthode **RFM** (Récence, Fréquence, Montant) et sur des algorithmes de clustering (K-means et clustering hiérarchique).
 
-Les résultats sont restitués dans un **dashboard Streamlit**, destiné aux équipes marketing, qui permet de consulter les caractéristiques de chaque segment et les actions recommandées.
+Les résultats sont restitués de deux façons :
+
+- un **tableau de bord Data Studio**, qui présente les indicateurs clés et les caractéristiques de chaque segment ;
+- un **simulateur Streamlit**, qui attribue instantanément un segment à un client à partir de son profil RFM.
 
 ## Contexte et problématique
 
@@ -51,9 +54,9 @@ Chaque client est décrit par trois indicateurs :
 4. **PCA** : visualisation des clusters en 2D, avec 94 % de variance expliquée.
 5. **Personas marketing** : nom et profil de chaque segment, actions recommandées.
 
-### Activité 4 : Dashboard Streamlit
+### Activité 4 : Restitution des résultats
 
-Restitution des résultats dans un dashboard interactif.
+Tableau de bord Data Studio et simulateur Streamlit.
 
 ## Modèle retenu
 
@@ -76,29 +79,32 @@ Valeurs médianes sur la période étudiée :
 | Nouveaux clients | 872 (20 %) | 19 jours | 2 commandes | 419 £ | Incitation à un deuxième achat |
 | Inactifs | 1 583 (37 %) | 184 jours | 1 commande | 304 £ | Campagne de relance peu coûteuse |
 
-## Dashboard Streamlit
+## Restitution des résultats
 
-Le dashboard comporte 6 pages :
+### Tableau de bord Data Studio
 
-- **Accueil** : présentation du projet et des indicateurs RFM ;
-- **Indicateurs clés** : cartes KPI, avec un filtre par segment ;
-- **Répartition des segments** : nombre de clients par segment ;
-- **Visualisation PCA** : projection des clients en 2D, avec un filtre par segment ;
-- **Comparaison des segments** : boxplots de la Récence, de la Fréquence et du Montant par segment ;
-- **Personas marketing** : profil de chaque segment et action recommandée.
+Les indicateurs clés et les analyses par segment (nombre de clients, répartition, profils RFM médians, comparaison des segments) sont présentés dans un rapport Data Studio, construit à partir du fichier `rfm_segments.csv`.
 
-Lien du dashboard en ligne : *(à compléter après le déploiement)*
+Lien du rapport : *(à compléter)*
+
+### Simulateur Streamlit
+
+Le simulateur permet aux équipes marketing de saisir le profil RFM d'un client (récence, fréquence, montant) pour connaître instantanément son segment et l'action marketing recommandée.
+
+Le client est classé dans le segment dont le centre est le plus proche, après le même prétraitement que dans le notebook (transformation logarithmique, puis standardisation) : c'est la règle d'affectation de K-means.
+
+Lien du simulateur : *https://projet-globalshop-direct-formationsimplon.streamlit.app/*
 
 ## Contenu du dépôt
 
 - `OnlineretailActivité2.ipynb` : nettoyage, construction et prétraitement du dataset RFM
 - `OnlineretailActivité3.ipynb` : clustering, PCA et définition des personas
-- `app.py` : dashboard Streamlit
+- `app.py` : simulateur Streamlit de qualification client
 - `rfm.csv` et `rfm_scaled.csv` : datasets produits par l'activité 2, utilisés par l'activité 3
-- `rfm_segments.csv` : dataset RFM avec les segments, utilisé par le dashboard
-- `requirements.txt` : librairies nécessaires au dashboard
+- `rfm_segments.csv` : dataset RFM avec les segments, utilisé par Data Studio et par le simulateur
+- `requirements.txt` : librairies nécessaires au simulateur
 
-## Lancer le dashboard en local
+## Lancer le simulateur en local
 
 ```
 pip install -r requirements.txt
@@ -110,7 +116,8 @@ streamlit run app.py
 - Les clients sans identifiant (environ 25 % des transactions) n'ont pas pu être segmentés.
 - Les données datent de 2010-2011 : la segmentation devra être mise à jour avec des données récentes.
 - Les segments découpent un ensemble continu de clients : un client situé à la frontière entre deux segments a un profil intermédiaire.
+- La méthode RFM ne tient compte ni des produits achetés, ni du pays, ni de la marge.
 
 ## Auteurs
 
-- *(Mouna, Ilyes et Brice)*
+- *Mouna, Ilyes et Brice*
