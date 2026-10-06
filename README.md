@@ -85,7 +85,7 @@ Valeurs médianes sur la période étudiée :
 
 Les indicateurs clés et les analyses par segment (nombre de clients, répartition, profils RFM médians, comparaison des segments) sont présentés dans un rapport Data Studio, construit à partir du fichier `rfm_segments.csv`.
 
-Lien du rapport : *(à compléter)*
+Lien du rapport : *https://datastudio.google.com/reporting/d0c789bc-f502-4a73-90c0-5f3e2f4fe552/page/d5YAG*
 
 ### Simulateur Streamlit
 
